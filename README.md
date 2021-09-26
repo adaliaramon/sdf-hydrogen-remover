@@ -1,5 +1,13 @@
 # sdf-hydrogen-remover
 
+## Installation
+```bash
+cargo install sdf-hydrogen-remover
+```
+
+## Usage
+See `sdf-hydrogen-remover --help`.
+
 ## Building
 
 After cloning the repository, run
