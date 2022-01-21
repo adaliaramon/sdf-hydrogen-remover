@@ -1,6 +1,8 @@
 extern crate clap;
 
 use std::fs;
+use std::fs::File;
+use std::io::{BufWriter, stdout, Write};
 
 use clap::{App, Arg};
 
@@ -27,6 +29,18 @@ fn main() {
     let sdf = matcher.value_of("sdf").unwrap();
     let content = fs::read_to_string(sdf).unwrap();
     let split: Vec<&str> = content.split("\n").collect();
+
+    let mut writer = BufWriter::new(match matcher.value_of("output") {
+        Some(x) => Box::new(File::create(x).unwrap()) as Box<dyn Write>,
+        None => Box::new(stdout()),
+    });
+
+    writer.write_all(&format!(
+        "{}\n{}\n{}\n",
+        split.get(0).unwrap(),
+        split.get(1).unwrap(),
+        split.get(2).unwrap()
+    ).as_bytes()).unwrap();
 
     let information_row = split.get(3).unwrap();
     let n_atoms: usize = information_row[0..3].trim().parse().unwrap();
@@ -68,26 +82,17 @@ fn main() {
         bond_block += &format!("{: >3}{: >3}{}\n", new_root, new_target, rest);
     }
 
-    let mut string = String::new();
-    string += &format!(
-        "{}\n{}\n{}\n",
-        split.get(0).unwrap(),
-        split.get(1).unwrap(),
-        split.get(2).unwrap()
-    );
     let rest = &information_row[6..];
-    string += &format!("{: >3}{: >3}{}\n", n_atoms - sum, new_n_bonds, rest);
-    string += &atom_block;
-    string += &bond_block;
-    for line in split[4 + n_atoms + n_bonds..].iter() {
-        string += &format!("{}\n", line);
-    }
-    string.pop();
+    writer.write_all(&format!("{: >3}{: >3}{}\n", n_atoms - sum, new_n_bonds, rest).as_bytes()).unwrap();
+    writer.write_all(atom_block.as_bytes()).unwrap();
+    writer.write_all(bond_block.as_bytes()).unwrap();
 
-    if matcher.is_present("output") {
-        let output = matcher.value_of("output").unwrap();
-        fs::write(output, string).unwrap();
-    } else {
-        print!("{}", string);
+    let mut tags_block = String::new();
+    for line in split[4 + n_atoms + n_bonds..].iter() {
+        tags_block += &format!("{}\n", line);
     }
+    tags_block.pop();
+    writer.write_all(tags_block.as_bytes()).unwrap();
+
+    writer.flush().unwrap();
 }
